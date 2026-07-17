@@ -54,11 +54,11 @@
     <p>Two HTTPS endpoints: one returns a proposed salt-delivery time for an address, the other books it. Plain JSON with a key header. Both respond in about a second; a 10-second client timeout is plenty.</p>
 
     <div class="flow">
-      <div class="box"><b>1 · Check</b>Tech confirms customer name, address, ZIP (pre-filled from the work order). App calls <code>partner_check_availability</code> → gets a date + 1-hour window in ~1s.</div>
+      <div class="box"><b>1 · Check</b>Tech confirms customer name, address, ZIP (pre-filled from the work order). App calls <code>partner_check_availability</code> → gets earliest + latest openings for each of the next four Saturdays.</div>
       <div class="arrow">→</div>
-      <div class="box"><b>2 · Ask</b>Tech reads the time to the customer and gets a yes or no. Nothing is booked yet.</div>
+      <div class="box"><b>2 · Ask</b>App shows the options in a dropdown. Customer picks one. Nothing is booked yet.</div>
       <div class="arrow">→</div>
-      <div class="box"><b>3 · Book</b>On yes, app calls <code>partner_book_job</code> with phone + water type. Customer and job are created in Simply Salt's system, tagged to your technician.</div>
+      <div class="box"><b>3 · Book</b>App calls <code>partner_book_job</code> with the chosen date/time, phone, and water type. Customer and job are created in Simply Salt's system, tagged to your technician.</div>
     </div>
 
     <div class="callout">Pre-fill customer name, address, ZIP, and phone from the active work order, and take the technician's name from the login session. Done that way, a referral is two taps and the tech types nothing.</div>
@@ -72,24 +72,33 @@
     </table>
 
     <h2><span class="step">1</span>POST /partner_check_availability</h2>
-    <p>Read-only. Returns the proposed slot: the next upcoming Saturday, at the first open time from 9:00&nbsp;AM that keeps 30 minutes clear on each side of existing stops. Every ZIP code is accepted, so you can skip ZIP validation on your side. <code>stop_number</code> and <code>total_stops</code> are informational; you don't need to use them.</p>
+    <p>Read-only. Returns the earliest and latest open slot for each of the next four Saturdays (open = between 9:00&nbsp;AM and 4:00&nbsp;PM starts, with 30 minutes clear on each side of existing deliveries). Every ZIP code is accepted, so you can skip ZIP validation on your side. Render the options in a picker; <code>stops</code> is informational.</p>
     <table>
       <tr><th>Field</th><th>Type</th><th>Notes</th></tr>
       <tr><td><code>customer_name</code></td><td>string</td><td>Optional here, required at booking</td></tr>
       <tr><td><code>address</code> <span class="req">*</span></td><td>string</td><td>Street + city works best: <code>"120 W Main St, Carmel"</code></td></tr>
       <tr><td><code>zip</code> <span class="req">*</span></td><td>string</td><td>5 digits</td></tr>
     </table>
-<pre><span class="c">// response — show route_date + proposed_time_window to the tech;
-// keep route_saturday + scheduled_time to pass to the booking call</span>
+<pre><span class="c">// response — show `window` values in your picker; pass the chosen
+// option's `date` and `scheduled_time` to the booking call</span>
 {
   "available": true,
-  "route_saturday": "2026-07-18",
-  "route_date": "Saturday, July 18, 2026",
-  "proposed_time_window": "10:45 AM - 11:45 AM",
-  "scheduled_time": "10:45",
-  "stop_number": 6,
-  "total_stops": 12
+  "options": [
+    {
+      "date": "2026-07-18",
+      "date_readable": "Saturday, July 18",
+      "earliest": { "scheduled_time": "11:15", "window": "11:15 AM - 12:15 PM" },
+      "latest":   { "scheduled_time": "16:00", "window": "4:00 PM - 5:00 PM" },
+      "stops": 11
+    },
+    { "date": "2026-07-25", "date_readable": "Saturday, July 25",
+      "earliest": { "scheduled_time": "09:00", "window": "9:00 AM - 10:00 AM" },
+      "latest":   { "scheduled_time": "16:00", "window": "4:00 PM - 5:00 PM" },
+      "stops": 4 }
+    <span class="c">// ... two more Saturdays, same shape</span>
+  ]
 }</pre>
+    <p>If a day is fully booked, <code>earliest</code> and <code>latest</code> are the same time (after the last existing stop) — collapse them to one option in your picker.</p>
 
     <h2><span class="step">2</span>POST /partner_book_job</h2>
     <p>Creates the customer and the scheduled delivery in Simply Salt's system in one call. Call only after the customer accepts the time.</p>
@@ -98,8 +107,8 @@
       <tr><td><code>customer_name</code> <span class="req">*</span></td><td>string</td><td>Full name</td></tr>
       <tr><td><code>phone</code> <span class="req">*</span></td><td>string</td><td>10 digits, punctuation ok</td></tr>
       <tr><td><code>address</code> <span class="req">*</span> &nbsp;<code>zip</code> <span class="req">*</span></td><td>string</td><td>Same values used for the check</td></tr>
-      <tr><td><code>scheduled_date</code> <span class="req">*</span></td><td>string</td><td><code>route_saturday</code> from step 1 (YYYY-MM-DD)</td></tr>
-      <tr><td><code>scheduled_time</code></td><td>string</td><td><code>scheduled_time</code> from step 1 (HH:MM, 24h)</td></tr>
+      <tr><td><code>scheduled_date</code> <span class="req">*</span></td><td>string</td><td>Chosen option's <code>date</code> (YYYY-MM-DD)</td></tr>
+      <tr><td><code>scheduled_time</code></td><td>string</td><td>Chosen option's <code>scheduled_time</code> (HH:MM, 24h)</td></tr>
       <tr><td><code>referred_by</code> <span class="req">*</span></td><td>string</td><td><b>Technician's name from your app session — this is how referral credit is tracked</b></td></tr>
       <tr><td><code>email</code>, <code>water_type</code>, <code>partner_company</code></td><td>string</td><td>Optional. <code>water_type</code>: <code>"city"</code> (default) or <code>"well"</code> — determines salt product</td></tr>
     </table>
@@ -137,13 +146,14 @@ async function call(path, body) {
 }
 
 <span class="c">// step 1 — when the tech opens the referral screen</span>
-const slot = await call("partner_check_availability",
+const avail = await call("partner_check_availability",
   { customer_name: job.customerName, address: job.street, zip: job.zip });
+<span class="c">// build the picker from avail.options (each has .earliest and .latest)</span>
 
-<span class="c">// step 2 — when the customer says yes</span>
+<span class="c">// step 2 — when the customer picks an option</span>
 const booking = await call("partner_book_job", {
   customer_name: job.customerName, phone: job.phone, address: job.street, zip: job.zip,
-  scheduled_date: slot.route_saturday, scheduled_time: slot.scheduled_time,
+  scheduled_date: chosenOption.date, scheduled_time: chosenSlot.scheduled_time,
   water_type: "city", referred_by: session.technicianName, partner_company: "Peterman Brothers"
 });</pre>
 

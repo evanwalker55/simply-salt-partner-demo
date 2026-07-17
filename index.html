@@ -110,9 +110,11 @@
           <div class="field"><label>ZIP</label><input id="czip" placeholder="46032" maxlength="5"></div>
         </div>
         <button class="btn btn-primary" id="checkBtn">Check delivery time</button>
-        <div class="spin" id="spin1">Finding the best route slot&hellip;</div>
+        <div class="spin" id="spin1">Checking the next four Saturdays&hellip;</div>
         <div class="slot" id="slotCard">
-          <div class="when" id="slotWhen"></div>
+          <div class="field"><label>Delivery time &mdash; ask the customer which works</label>
+            <select id="slotSelect"></select>
+          </div>
           <div class="meta" id="slotMeta"></div>
         </div>
         <div class="err" id="err1"></div>
@@ -152,7 +154,7 @@
             <div class="jc-sched">
               <div><b>Date</b><span id="jcDate"></span></div>
               <div><b>Arrival window</b><span id="jcWindow"></span></div>
-              <div><b>Route stop</b><span id="jcStop"></span></div>
+              <div><b>That day</b><span id="jcStop"></span></div>
             </div>
             <div class="jc-note" id="jcNote"></div>
             <div class="jc-tags"><span class="tag-pill">partner-referral</span><span class="tag-pill" id="jcRefTag"></span></div>
@@ -209,8 +211,19 @@ $("checkBtn").onclick = async () => {
   try {
     const d = await api("partner_check_availability", { customer_name: name, address: addr, zip });
     lastAvail = d;
-    $("slotWhen").textContent = `${d.route_date} · ${d.proposed_time_window}`;
-    $("slotMeta").textContent = `Next Saturday · ${d.total_stops - 1} other ${d.total_stops - 1 === 1 ? "stop" : "stops"} that day`;
+    const sel = $("slotSelect");
+    sel.innerHTML = "";
+    d.options.forEach(o => {
+      const add = (label, s) => {
+        const opt = document.createElement("option");
+        opt.value = JSON.stringify({ date: o.date, date_readable: o.date_readable, time: s.scheduled_time, window: s.window, stops: o.stops });
+        opt.textContent = `${o.date_readable} · ${label} ${s.window}`;
+        sel.appendChild(opt);
+      };
+      add("early", o.earliest);
+      if (o.latest.scheduled_time !== o.earliest.scheduled_time) add("late", o.latest);
+    });
+    $("slotMeta").textContent = "Earliest and latest opening for each of the next four Saturdays";
     $("slotCard").style.display = "block";
     $("step2").style.display = "block";
   } catch (e) { $("err1").textContent = e.message; $("err1").style.display = "block"; }
@@ -222,14 +235,15 @@ $("bookBtn").onclick = async () => {
   const ref = $("cref").value.trim();
   if (!ref) { $("err2").textContent = "Technician name is required — that's how the referral gets credited."; $("err2").style.display = "block"; return; }
   $("spin2").style.display = "block"; $("bookBtn").disabled = true;
+  const chosen = JSON.parse($("slotSelect").value);
   const body = {
     customer_name: $("cname").value.trim(),
     phone: $("cphone").value.trim(),
     email: $("cemail").value.trim(),
     address: $("caddr").value.trim(),
     zip: $("czip").value.trim(),
-    scheduled_date: lastAvail.route_saturday,
-    scheduled_time: lastAvail.scheduled_time,
+    scheduled_date: chosen.date,
+    scheduled_time: chosen.time,
     water_type: $("cwater").value,
     referred_by: ref,
     partner_company: "Peterman Brothers"
@@ -243,9 +257,9 @@ $("bookBtn").onclick = async () => {
     $("jcId").textContent = d.job_id;
     $("jcName").textContent = body.customer_name;
     $("jcAddr").textContent = `${body.address}, IN ${body.zip}`;
-    $("jcDate").textContent = lastAvail.route_date;
-    $("jcWindow").textContent = lastAvail.proposed_time_window;
-    $("jcStop").textContent = `${lastAvail.stop_number} of ${lastAvail.total_stops}`;
+    $("jcDate").textContent = chosen.date_readable;
+    $("jcWindow").textContent = chosen.window;
+    $("jcStop").textContent = `${chosen.stops} other ${chosen.stops === 1 ? "stop" : "stops"}`;
     const salt = body.water_type === "well" ? "Iron-Fighting Salt (Green Bag)" : "Morton Pellets";
     $("jcNote").innerHTML = `<b>Job note:</b> PARTNER REFERRAL - Referred by: ${ref} (Peterman Brothers) | Water type: ${body.water_type} | Salt: ${salt}` + (body.notes ? ` | Notes: ${body.notes}` : "");
     $("jcRefTag").textContent = `ref: ${ref}`;
