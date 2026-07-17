@@ -129,7 +129,6 @@
             <select id="cwater"><option value="city">City water</option><option value="well">Well water</option></select>
           </div>
         </div>
-        <div class="field"><label>Notes (optional)</label><input id="cnotes" placeholder="Gate code, dog, etc."></div>
         <div class="field"><label>Technician name *</label><input id="cref" placeholder="Who's making this referral"></div>
         <button class="btn btn-book" id="bookBtn">Book it</button>
         <div class="spin" id="spin2">Booking&hellip;</div>
@@ -232,7 +231,6 @@ $("bookBtn").onclick = async () => {
     scheduled_date: lastAvail.route_saturday,
     scheduled_time: lastAvail.scheduled_time,
     water_type: $("cwater").value,
-    notes: $("cnotes").value.trim(),
     referred_by: ref,
     partner_company: "Peterman Brothers"
   };
