@@ -211,7 +211,7 @@ $("checkBtn").onclick = async () => {
     const d = await api("partner_check_availability", { customer_name: name, address: addr, zip });
     lastAvail = d;
     $("slotWhen").textContent = `${d.route_date} · ${d.proposed_time_window}`;
-    $("slotMeta").textContent = `Stop ${d.stop_number} of ${d.total_stops} on the route` + (d.route_number ? ` · Route ${d.route_number}` : " · New-area Saturday");
+    $("slotMeta").textContent = `Next Saturday · ${d.total_stops - 1} other ${d.total_stops - 1 === 1 ? "stop" : "stops"} that day`;
     $("slotCard").style.display = "block";
     $("step2").style.display = "block";
   } catch (e) { $("err1").textContent = e.message; $("err1").style.display = "block"; }
