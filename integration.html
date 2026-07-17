@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Simply Salt Partner API — Integration Guide</title>
+<style>
+  :root { --navy:#16324f; --teal:#1f7a6d; --ink:#1d2733; --muted:#5d6b7c; --line:#dde3ea; --bg:#f4f6f8; --code:#101827; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { font-family:-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; color:var(--ink); background:var(--bg); line-height:1.5; }
+  .page { max-width: 860px; margin: 0 auto; background:#fff; box-shadow:0 4px 30px rgba(20,30,45,.08); }
+  .head { background:var(--navy); color:#fff; padding:30px 44px; }
+  .head h1 { font-size:23px; font-weight:700; }
+  .head .sub { font-size:14px; opacity:.8; margin-top:4px; }
+  .head .links { margin-top:12px; font-size:13px; }
+  .head a { color:#9fd6c9; }
+  .body { padding: 30px 44px 44px; }
+  h2 { font-size:16px; color:var(--navy); margin:28px 0 10px; padding-bottom:6px; border-bottom:2px solid var(--line); }
+  h2 .step { display:inline-block; background:var(--teal); color:#fff; border-radius:50%; width:24px; height:24px; text-align:center; line-height:24px; font-size:13px; margin-right:8px; }
+  p { font-size:14px; margin: 8px 0; }
+  .flow { display:flex; gap:10px; margin:14px 0 6px; flex-wrap:wrap; }
+  .flow .box { flex:1; min-width:150px; border:1.5px solid var(--line); border-radius:10px; padding:12px 14px; font-size:12.5px; background:#fafbfc; }
+  .flow .box b { display:block; font-size:12px; color:var(--teal); text-transform:uppercase; letter-spacing:.5px; margin-bottom:4px; }
+  .flow .arrow { align-self:center; color:var(--muted); font-size:18px; }
+  table { width:100%; border-collapse:collapse; font-size:13px; margin:10px 0; }
+  th { text-align:left; background:#f4f7fa; padding:7px 10px; border:1px solid var(--line); font-size:12px; text-transform:uppercase; letter-spacing:.4px; color:var(--muted); }
+  td { padding:7px 10px; border:1px solid var(--line); vertical-align:top; }
+  td code, p code, li code { background:#eef1f4; padding:1px 6px; border-radius:4px; font-family:Consolas,monospace; font-size:12px; }
+  .req { color:#b3402a; font-weight:700; }
+  pre { background:var(--code); color:#c6d4e3; border-radius:10px; padding:16px 18px; font-family:Consolas,"Courier New",monospace; font-size:12px; overflow-x:auto; margin:10px 0; line-height:1.55; }
+  pre .c { color:#6b7787; }
+  .callout { border-left:4px solid var(--teal); background:#f2f8f6; padding:12px 16px; border-radius:0 10px 10px 0; font-size:13.5px; margin:12px 0; }
+  .callout.warn { border-color:#c98a1b; background:#fdf6e9; }
+  ul, ol { font-size:14px; margin:8px 0 8px 22px; }
+  li { margin:4px 0; }
+  .foot { padding:18px 44px; border-top:1px solid var(--line); font-size:12.5px; color:var(--muted); display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px; }
+  @media print {
+    body { background:#fff; }
+    .page { box-shadow:none; max-width:none; }
+    pre { white-space:pre-wrap; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="head">
+    <h1>Simply Salt — Referral Scheduling API</h1>
+    <div class="sub">Developer integration guide for the Peterman technician app &nbsp;·&nbsp; v1 &nbsp;·&nbsp; July 2026</div>
+    <div class="links">Live demo (real API, watch the calls): <a href="https://evanwalker55.github.io/simply-salt-partner-demo/">evanwalker55.github.io/simply-salt-partner-demo</a></div>
+  </div>
+  <div class="body">
+
+    <h2>What this is</h2>
+    <p>Two HTTPS endpoints that let a technician offer a customer a <b>water-softener salt delivery time on the spot</b> and book it in one tap. No SDK, no OAuth, no data sync — plain JSON over HTTPS. Simply Salt's scheduling system computes the time live from its actual delivery routes; your app never sees the schedule, it just gets one proposed slot back.</p>
+
+    <div class="flow">
+      <div class="box"><b>1 · Check</b>Tech confirms customer name, address, ZIP (pre-filled from the work order). App calls <code>partner_check_availability</code> → gets a date + 1-hour window in ~1s.</div>
+      <div class="arrow">→</div>
+      <div class="box"><b>2 · Ask</b>Tech reads the time to the customer: <i>"They can be out Saturday between 10:45 and 11:45 — work for you?"</i></div>
+      <div class="arrow">→</div>
+      <div class="box"><b>3 · Book</b>On yes, app calls <code>partner_book_job</code> with phone + water type. Customer and job are created in Simply Salt's system, tagged to your technician.</div>
+    </div>
+
+    <div class="callout"><b>Design goal — zero typing:</b> the technician is standing in a house that's already a job in your system. Pre-fill customer name, address, ZIP, and phone from the work order, and take the technician's name from their app session. The referral becomes two taps.</div>
+
+    <h2>Connection details</h2>
+    <table>
+      <tr><th>Base URL</th><td><code>https://primary-6xmr-production.up.railway.app/webhook</code></td></tr>
+      <tr><th>Auth</th><td>Header <code>x-partner-key: &lt;key&gt;</code> on every request. The key below is the <b>demo key</b> for development; the <b>production key is delivered separately</b> — keep it in your backend and proxy these calls through your server. Never ship it in the mobile app binary.</td></tr>
+      <tr><th>Demo key</th><td><code>sk_demo_petermanshow_2026</code></td></tr>
+      <tr><th>Format</th><td>JSON request body, JSON response. UTF-8. All times US Eastern.</td></tr>
+    </table>
+
+    <h2><span class="step">1</span>POST /partner_check_availability</h2>
+    <p>Read-only. Returns the proposed delivery slot: always the <b>next upcoming Saturday</b>, at the first open time from 9:00&nbsp;AM with at least 30 minutes of clearance on each side of Simply Salt's existing stops. All ZIP codes are accepted.</p>
+    <table>
+      <tr><th>Field</th><th>Type</th><th>Notes</th></tr>
+      <tr><td><code>customer_name</code></td><td>string</td><td>Optional here, required at booking</td></tr>
+      <tr><td><code>address</code> <span class="req">*</span></td><td>string</td><td>Street + city works best: <code>"120 W Main St, Carmel"</code></td></tr>
+      <tr><td><code>zip</code> <span class="req">*</span></td><td>string</td><td>5 digits</td></tr>
+    </table>
+<pre><span class="c">// response — show route_date + proposed_time_window to the tech;
+// keep route_saturday + scheduled_time to pass to the booking call</span>
+{
+  "available": true,
+  "route_saturday": "2026-07-18",
+  "route_date": "Saturday, July 18, 2026",
+  "proposed_time_window": "10:45 AM - 11:45 AM",
+  "scheduled_time": "10:45",
+  "stop_number": 6,
+  "total_stops": 12
+}</pre>
+
+    <h2><span class="step">2</span>POST /partner_book_job</h2>
+    <p>Creates the customer and the scheduled delivery in Simply Salt's system in one call. Call only after the customer accepts the time.</p>
+    <table>
+      <tr><th>Field</th><th>Type</th><th>Notes</th></tr>
+      <tr><td><code>customer_name</code> <span class="req">*</span></td><td>string</td><td>Full name</td></tr>
+      <tr><td><code>phone</code> <span class="req">*</span></td><td>string</td><td>10 digits, punctuation ok</td></tr>
+      <tr><td><code>address</code> <span class="req">*</span> &nbsp;<code>zip</code> <span class="req">*</span></td><td>string</td><td>Same values used for the check</td></tr>
+      <tr><td><code>scheduled_date</code> <span class="req">*</span></td><td>string</td><td><code>route_saturday</code> from step 1 (YYYY-MM-DD)</td></tr>
+      <tr><td><code>scheduled_time</code></td><td>string</td><td><code>scheduled_time</code> from step 1 (HH:MM, 24h)</td></tr>
+      <tr><td><code>referred_by</code> <span class="req">*</span></td><td>string</td><td><b>Technician's name from your app session — this is how referral credit is tracked</b></td></tr>
+      <tr><td><code>email</code>, <code>water_type</code>, <code>partner_company</code></td><td>string</td><td>Optional. <code>water_type</code>: <code>"city"</code> (default) or <code>"well"</code> — determines salt product</td></tr>
+    </table>
+<pre><span class="c">// response</span>
+{
+  "success": true,
+  "job_id": "job_1a2b3c...",
+  "scheduled_date": "2026-07-18",
+  "referred_by": "Mike Johnson",
+  "confirmation_message": "Delivery scheduled for Saturday, July 18, 2026 at approximately 10:45 AM. ..."
+}</pre>
+    <p>Show <code>confirmation_message</code> to the technician. On Simply Salt's side the job carries the note <code>PARTNER REFERRAL - Referred by: Mike Johnson (Peterman Brothers) | ...</code> and the tag <code>partner-referral</code> — that's the referral audit trail used for commission reporting.</p>
+
+    <h2>Errors</h2>
+    <table>
+      <tr><th>Status</th><th>Body</th><th>Meaning</th></tr>
+      <tr><td><code>401</code></td><td><code>{"error":"unauthorized"}</code></td><td>Missing or wrong <code>x-partner-key</code></td></tr>
+      <tr><td><code>400</code></td><td><code>{"error":"invalid_input","missing_fields":["phone","referred_by"]}</code></td><td>Lists exactly which required fields are absent or malformed</td></tr>
+      <tr><td><code>200</code></td><td><code>{"available": true, ...}</code> / <code>{"success": true, ...}</code></td><td>Good to go</td></tr>
+    </table>
+
+    <h2>Reference implementation</h2>
+<pre><span class="c">// Node/backend example — same two calls the live demo page makes (view its source for a browser version)</span>
+const BASE = "https://primary-6xmr-production.up.railway.app/webhook";
+const KEY  = process.env.SIMPLY_SALT_PARTNER_KEY;   <span class="c">// production key, server-side only</span>
+
+async function call(path, body) {
+  const r = await fetch(`${BASE}/${path}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "x-partner-key": KEY },
+    body: JSON.stringify(body)
+  });
+  const data = await r.json();
+  if (!r.ok) throw new Error(JSON.stringify(data));
+  return data;
+}
+
+<span class="c">// step 1 — when the tech opens the referral screen</span>
+const slot = await call("partner_check_availability",
+  { customer_name: job.customerName, address: job.street, zip: job.zip });
+
+<span class="c">// step 2 — when the customer says yes</span>
+const booking = await call("partner_book_job", {
+  customer_name: job.customerName, phone: job.phone, address: job.street, zip: job.zip,
+  scheduled_date: slot.route_saturday, scheduled_time: slot.scheduled_time,
+  water_type: "city", referred_by: session.technicianName, partner_company: "Peterman Brothers"
+});</pre>
+
+    <h2>Rollout checklist</h2>
+    <ol>
+      <li>Build against the <b>demo key</b> — it hits the real scheduler, so times returned are genuine. Tell us before load-testing.</li>
+      <li>Add the referral tile/button to your existing referral screen; pre-fill fields from the active work order.</li>
+      <li>Swap in the production key (delivered privately), stored server-side.</li>
+      <li>Send one live test booking; Simply Salt confirms it landed with the referral note, then you ship.</li>
+    </ol>
+    <div class="callout warn"><b>Anything you want changed</b> — extra fields, technician IDs instead of names, a callback webhook when the delivery completes (for commission reconciliation) — is a same-day change on our side. Just ask.</div>
+  </div>
+  <div class="foot">
+    <span>Simply Salt · Zionsville, IN · evanalanwalker@gmail.com</span>
+    <span>Print this page — it's formatted as a one-pager.</span>
+  </div>
+</div>
+</body>
+</html>
