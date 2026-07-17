@@ -92,10 +92,6 @@
     <h1>Simply Salt &times; Peterman &mdash; Referral Scheduling Demo</h1>
     <div class="sub">Live demo &mdash; every call below hits the real Simply Salt scheduling API</div>
   </div>
-  <div class="keybox">
-    <label for="pkey">Partner key</label>
-    <input type="password" id="pkey" placeholder="paste x-partner-key to enable demo">
-  </div>
 </header>
 
 <div class="wrap">
@@ -134,7 +130,7 @@
           </div>
         </div>
         <div class="field"><label>Notes (optional)</label><input id="cnotes" placeholder="Gate code, dog, etc."></div>
-        <div class="field"><label>Referred by (your name) *</label><input id="cref" placeholder="Technician name"></div>
+        <div class="field"><label>Technician name *</label><input id="cref" placeholder="Who's making this referral"></div>
         <button class="btn btn-book" id="bookBtn">Book it</button>
         <div class="spin" id="spin2">Booking&hellip;</div>
         <div class="confirm" id="confirmCard"></div>
@@ -180,11 +176,9 @@
 
 <script>
 const BASE = "https://primary-6xmr-production.up.railway.app/webhook";
+const DEMO_KEY = "sk_demo_petermanshow_2026"; // demo-only key, revocable; production uses its own key server-side
 const $ = id => document.getElementById(id);
 let lastAvail = null;
-
-$("pkey").value = localStorage.getItem("ss_partner_key") || "";
-$("pkey").addEventListener("change", () => localStorage.setItem("ss_partner_key", $("pkey").value.trim()));
 
 function logCall(title, url, reqBody, respBody) {
   $("logEmpty").style.display = "none";
@@ -196,11 +190,9 @@ function logCall(title, url, reqBody, respBody) {
 }
 
 async function api(path, body) {
-  const key = $("pkey").value.trim();
-  if (!key) throw new Error("Enter the partner key in the top-right corner first.");
   const res = await fetch(`${BASE}/${path}`, {
     method: "POST",
-    headers: { "Content-Type": "application/json", "x-partner-key": key },
+    headers: { "Content-Type": "application/json", "x-partner-key": DEMO_KEY },
     body: JSON.stringify(body)
   });
   const data = await res.json();
@@ -229,7 +221,7 @@ $("checkBtn").onclick = async () => {
 $("bookBtn").onclick = async () => {
   $("err2").style.display = "none"; $("confirmCard").style.display = "none";
   const ref = $("cref").value.trim();
-  if (!ref) { $("err2").textContent = "Referred by is required — that's how the technician gets credit."; $("err2").style.display = "block"; return; }
+  if (!ref) { $("err2").textContent = "Technician name is required — that's how the referral gets credited."; $("err2").style.display = "block"; return; }
   $("spin2").style.display = "block"; $("bookBtn").disabled = true;
   const body = {
     customer_name: $("cname").value.trim(),
