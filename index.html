@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Simply Salt × Peterman — Partner Integration Demo</title>
+<style>
+  :root {
+    --navy: #16324f;
+    --teal: #1f7a6d;
+    --teal-dark: #175c52;
+    --red: #b3402a;
+    --bg: #eef1f4;
+    --card: #ffffff;
+    --ink: #1d2733;
+    --muted: #6b7787;
+    --line: #dde3ea;
+    --ok: #2e7d4f;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: var(--bg); color: var(--ink); min-height: 100vh; }
+  header { background: var(--navy); color: #fff; padding: 18px 28px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+  header h1 { font-size: 18px; font-weight: 600; }
+  header .sub { font-size: 13px; opacity: .75; }
+  .keybox { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+  .keybox input { padding: 7px 10px; border-radius: 6px; border: none; width: 260px; font-size: 12px; }
+  .wrap { display: flex; gap: 28px; padding: 28px; justify-content: center; flex-wrap: wrap; align-items: flex-start; }
+
+  /* Phone frame — technician side */
+  .phone { width: 375px; background: #0e1620; border-radius: 38px; padding: 14px; box-shadow: 0 18px 45px rgba(10,20,35,.35); flex-shrink: 0; }
+  .phone .screen { background: #f7f8fa; border-radius: 26px; overflow: hidden; min-height: 640px; display: flex; flex-direction: column; }
+  .appbar { background: var(--red); color: #fff; padding: 16px 18px 12px; }
+  .appbar .co { font-size: 15px; font-weight: 700; letter-spacing: .3px; }
+  .appbar .tag { font-size: 11px; opacity: .85; margin-top: 2px; }
+  .appbody { padding: 16px 18px 24px; flex: 1; }
+  .appbody h2 { font-size: 14px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .6px; margin: 14px 0 8px; }
+  .field { margin-bottom: 10px; }
+  .field label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 3px; }
+  .field input, .field select, .field textarea { width: 100%; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; font-size: 14px; background: #fff; }
+  .row2 { display: flex; gap: 8px; }
+  .row2 .field { flex: 1; }
+  .btn { display: block; width: 100%; padding: 13px; border: none; border-radius: 9px; font-size: 15px; font-weight: 600; cursor: pointer; margin-top: 6px; }
+  .btn-primary { background: var(--teal); color: #fff; }
+  .btn-primary:hover { background: var(--teal-dark); }
+  .btn-book { background: var(--navy); color: #fff; }
+  .btn:disabled { opacity: .5; cursor: default; }
+  .slot { background: #e8f4f1; border: 1.5px solid var(--teal); border-radius: 10px; padding: 14px; margin: 12px 0 4px; display: none; }
+  .slot .when { font-size: 17px; font-weight: 700; color: var(--teal-dark); }
+  .slot .meta { font-size: 12.5px; color: var(--muted); margin-top: 3px; }
+  .confirm { background: #eaf5ee; border: 1.5px solid var(--ok); border-radius: 10px; padding: 14px; margin-top: 12px; display: none; font-size: 13.5px; color: #1d4d33; }
+  .err { background: #fbeeec; border: 1.5px solid var(--red); border-radius: 10px; padding: 12px; margin-top: 10px; display: none; font-size: 13px; color: var(--red); }
+  #step2 { display: none; }
+  .spin { display: none; text-align: center; padding: 8px; color: var(--muted); font-size: 13px; }
+
+  /* Simply Salt side */
+  .right { width: 520px; max-width: 100%; }
+  .panel { background: var(--card); border-radius: 14px; box-shadow: 0 6px 22px rgba(20,30,45,.08); margin-bottom: 22px; overflow: hidden; }
+  .panel-head { padding: 14px 20px; border-bottom: 1px solid var(--line); display: flex; align-items: center; gap: 10px; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--teal); }
+  .panel-head h3 { font-size: 14px; font-weight: 700; }
+  .panel-head .hint { font-size: 12px; color: var(--muted); margin-left: auto; }
+  .panel-body { padding: 18px 20px; }
+  .empty { color: var(--muted); font-size: 13.5px; padding: 18px 0; text-align: center; }
+
+  /* HCP-style job card */
+  .jobcard { border: 1px solid var(--line); border-radius: 10px; overflow: hidden; display: none; }
+  .jobcard .jc-top { background: #f4f7fa; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; }
+  .jobcard .jc-top .jid { font-size: 11.5px; color: var(--muted); font-family: Consolas, monospace; }
+  .badge { font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 20px; background: #dcebff; color: #1d5fa8; }
+  .jc-body { padding: 14px 16px; }
+  .jc-body .cname { font-size: 16px; font-weight: 700; }
+  .jc-body .caddr { font-size: 13px; color: var(--muted); margin-top: 2px; }
+  .jc-sched { display: flex; gap: 18px; margin: 12px 0; padding: 10px 12px; background: #f4f7fa; border-radius: 8px; font-size: 13px; }
+  .jc-sched b { display: block; font-size: 12px; color: var(--muted); font-weight: 600; }
+  .jc-note { border-left: 3px solid var(--teal); background: #f2f8f6; padding: 10px 12px; font-size: 12.5px; border-radius: 0 8px 8px 0; margin-top: 8px; color: #234; }
+  .jc-note b { color: var(--teal-dark); }
+  .jc-tags { margin-top: 10px; }
+  .tag-pill { display: inline-block; font-size: 11px; background: #eef1f4; border: 1px solid var(--line); padding: 3px 10px; border-radius: 20px; color: var(--muted); margin-right: 6px; }
+
+  /* API log */
+  .log { font-family: Consolas, "Courier New", monospace; font-size: 11.5px; background: #101827; color: #c6d4e3; border-radius: 10px; padding: 14px 16px; max-height: 340px; overflow-y: auto; display: none; }
+  .log .req { color: #7dd3b0; }
+  .log .resp { color: #8ab4f8; }
+  .log pre { white-space: pre-wrap; word-break: break-all; margin: 4px 0 12px; }
+  footer { text-align: center; color: var(--muted); font-size: 12px; padding: 18px; }
+  @media (max-width: 1000px) { .wrap { padding: 16px; } .right { width: 100%; } }
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>Simply Salt &times; Peterman &mdash; Referral Scheduling Demo</h1>
+    <div class="sub">Live demo &mdash; every call below hits the real Simply Salt scheduling API</div>
+  </div>
+  <div class="keybox">
+    <label for="pkey">Partner key</label>
+    <input type="password" id="pkey" placeholder="paste x-partner-key to enable demo">
+  </div>
+</header>
+
+<div class="wrap">
+  <!-- ============ TECHNICIAN PHONE ============ -->
+  <div class="phone"><div class="screen">
+    <div class="appbar">
+      <div class="co">PETERMAN &mdash; TECH APP <span style="font-weight:400;opacity:.7">(mockup)</span></div>
+      <div class="tag">Refer a Service &rsaquo; Simply Salt &mdash; Water Softener Salt Delivery</div>
+    </div>
+    <div class="appbody">
+      <div id="step1">
+        <h2>Customer</h2>
+        <div class="field"><label>Customer name</label><input id="cname" placeholder="Jane Smith"></div>
+        <div class="field"><label>Service address</label><input id="caddr" placeholder="120 W Main St, Carmel"></div>
+        <div class="row2">
+          <div class="field"><label>ZIP</label><input id="czip" placeholder="46032" maxlength="5"></div>
+        </div>
+        <button class="btn btn-primary" id="checkBtn">Check delivery time</button>
+        <div class="spin" id="spin1">Finding the best route slot&hellip;</div>
+        <div class="slot" id="slotCard">
+          <div class="when" id="slotWhen"></div>
+          <div class="meta" id="slotMeta"></div>
+        </div>
+        <div class="err" id="err1"></div>
+      </div>
+
+      <div id="step2">
+        <h2>Confirm booking</h2>
+        <div class="row2">
+          <div class="field"><label>Phone</label><input id="cphone" placeholder="317 555 1234"></div>
+          <div class="field"><label>Email (optional)</label><input id="cemail" placeholder=""></div>
+        </div>
+        <div class="row2">
+          <div class="field"><label>Water type</label>
+            <select id="cwater"><option value="city">City water</option><option value="well">Well water</option></select>
+          </div>
+        </div>
+        <div class="field"><label>Notes (optional)</label><input id="cnotes" placeholder="Gate code, dog, etc."></div>
+        <div class="field"><label>Referred by (your name) *</label><input id="cref" placeholder="Technician name"></div>
+        <button class="btn btn-book" id="bookBtn">Book it</button>
+        <div class="spin" id="spin2">Booking&hellip;</div>
+        <div class="confirm" id="confirmCard"></div>
+        <div class="err" id="err2"></div>
+      </div>
+    </div>
+  </div></div>
+
+  <!-- ============ SIMPLY SALT SIDE ============ -->
+  <div class="right">
+    <div class="panel">
+      <div class="panel-head"><span class="dot"></span><h3>What Simply Salt sees</h3><span class="hint">HouseCall Pro &mdash; job created instantly</span></div>
+      <div class="panel-body">
+        <div class="empty" id="jobEmpty">Book a delivery on the phone to see the job appear here exactly as it lands in Simply Salt's HouseCall Pro.</div>
+        <div class="jobcard" id="jobCard">
+          <div class="jc-top"><span class="jid" id="jcId"></span><span class="badge">SCHEDULED</span></div>
+          <div class="jc-body">
+            <div class="cname" id="jcName"></div>
+            <div class="caddr" id="jcAddr"></div>
+            <div class="jc-sched">
+              <div><b>Date</b><span id="jcDate"></span></div>
+              <div><b>Arrival window</b><span id="jcWindow"></span></div>
+              <div><b>Route stop</b><span id="jcStop"></span></div>
+            </div>
+            <div class="jc-note" id="jcNote"></div>
+            <div class="jc-tags"><span class="tag-pill">partner-referral</span><span class="tag-pill" id="jcRefTag"></span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head"><span class="dot" style="background:#8ab4f8"></span><h3>The API calls (for your developer)</h3><span class="hint">this is the whole integration</span></div>
+      <div class="panel-body">
+        <div class="empty" id="logEmpty">Two HTTPS POST calls. As the demo runs, the exact requests and responses appear here.</div>
+        <div class="log" id="apiLog"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<footer>Simply Salt partner scheduling API &mdash; demo page. The technician app shown is a mockup; Peterman's real app makes the same two calls from its own backend.</footer>
+
+<script>
+const BASE = "https://primary-6xmr-production.up.railway.app/webhook";
+const $ = id => document.getElementById(id);
+let lastAvail = null;
+
+$("pkey").value = localStorage.getItem("ss_partner_key") || "";
+$("pkey").addEventListener("change", () => localStorage.setItem("ss_partner_key", $("pkey").value.trim()));
+
+function logCall(title, url, reqBody, respBody) {
+  $("logEmpty").style.display = "none";
+  const log = $("apiLog");
+  log.style.display = "block";
+  log.innerHTML += `<div class="req">&#9654; ${title}<br>POST ${url}</div><pre>${JSON.stringify(reqBody, null, 2)}</pre>` +
+                   `<div class="resp">&#9664; response</div><pre>${JSON.stringify(respBody, null, 2)}</pre>`;
+  log.scrollTop = log.scrollHeight;
+}
+
+async function api(path, body) {
+  const key = $("pkey").value.trim();
+  if (!key) throw new Error("Enter the partner key in the top-right corner first.");
+  const res = await fetch(`${BASE}/${path}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "x-partner-key": key },
+    body: JSON.stringify(body)
+  });
+  const data = await res.json();
+  logCall(path, `${BASE}/${path}`, body, data);
+  if (!res.ok) throw new Error(data.error === "unauthorized" ? "Partner key rejected (401)." :
+    data.missing_fields ? "Missing: " + data.missing_fields.join(", ") : (data.message || "Request failed"));
+  return data;
+}
+
+$("checkBtn").onclick = async () => {
+  $("err1").style.display = "none"; $("slotCard").style.display = "none"; $("step2").style.display = "none";
+  const name = $("cname").value.trim(), addr = $("caddr").value.trim(), zip = $("czip").value.trim();
+  if (!addr || zip.length !== 5) { $("err1").textContent = "Enter an address and 5-digit ZIP."; $("err1").style.display = "block"; return; }
+  $("spin1").style.display = "block"; $("checkBtn").disabled = true;
+  try {
+    const d = await api("partner_check_availability", { customer_name: name, address: addr, zip });
+    lastAvail = d;
+    $("slotWhen").textContent = `${d.route_date} · ${d.proposed_time_window}`;
+    $("slotMeta").textContent = `Stop ${d.stop_number} of ${d.total_stops} on the route` + (d.route_number ? ` · Route ${d.route_number}` : " · New-area Saturday");
+    $("slotCard").style.display = "block";
+    $("step2").style.display = "block";
+  } catch (e) { $("err1").textContent = e.message; $("err1").style.display = "block"; }
+  $("spin1").style.display = "none"; $("checkBtn").disabled = false;
+};
+
+$("bookBtn").onclick = async () => {
+  $("err2").style.display = "none"; $("confirmCard").style.display = "none";
+  const ref = $("cref").value.trim();
+  if (!ref) { $("err2").textContent = "Referred by is required — that's how the technician gets credit."; $("err2").style.display = "block"; return; }
+  $("spin2").style.display = "block"; $("bookBtn").disabled = true;
+  const body = {
+    customer_name: $("cname").value.trim(),
+    phone: $("cphone").value.trim(),
+    email: $("cemail").value.trim(),
+    address: $("caddr").value.trim(),
+    zip: $("czip").value.trim(),
+    scheduled_date: lastAvail.route_saturday,
+    scheduled_time: lastAvail.scheduled_time,
+    water_type: $("cwater").value,
+    notes: $("cnotes").value.trim(),
+    referred_by: ref,
+    partner_company: "Peterman Brothers"
+  };
+  try {
+    const d = await api("partner_book_job", body);
+    $("confirmCard").textContent = d.confirmation_message;
+    $("confirmCard").style.display = "block";
+    // populate the HCP-style job card
+    $("jobEmpty").style.display = "none";
+    $("jcId").textContent = d.job_id;
+    $("jcName").textContent = body.customer_name;
+    $("jcAddr").textContent = `${body.address}, IN ${body.zip}`;
+    $("jcDate").textContent = lastAvail.route_date;
+    $("jcWindow").textContent = lastAvail.proposed_time_window;
+    $("jcStop").textContent = `${lastAvail.stop_number} of ${lastAvail.total_stops}`;
+    const salt = body.water_type === "well" ? "Iron-Fighting Salt (Green Bag)" : "Morton Pellets";
+    $("jcNote").innerHTML = `<b>Job note:</b> PARTNER REFERRAL - Referred by: ${ref} (Peterman Brothers) | Water type: ${body.water_type} | Salt: ${salt}` + (body.notes ? ` | Notes: ${body.notes}` : "");
+    $("jcRefTag").textContent = `ref: ${ref}`;
+    $("jobCard").style.display = "block";
+  } catch (e) { $("err2").textContent = e.message; $("err2").style.display = "block"; }
+  $("spin2").style.display = "none"; $("bookBtn").disabled = false;
+};
+</script>
+</body>
+</html>
