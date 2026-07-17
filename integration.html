@@ -51,28 +51,28 @@
   <div class="body">
 
     <h2>What this is</h2>
-    <p>Two HTTPS endpoints that let a technician offer a customer a <b>water-softener salt delivery time on the spot</b> and book it in one tap. No SDK, no OAuth, no data sync — plain JSON over HTTPS. Simply Salt's scheduling system computes the time live from its actual delivery routes; your app never sees the schedule, it just gets one proposed slot back.</p>
+    <p>Two HTTPS endpoints: one returns a proposed salt-delivery time for an address, the other books it. Plain JSON with a key header. Both respond in about a second; a 10-second client timeout is plenty.</p>
 
     <div class="flow">
       <div class="box"><b>1 · Check</b>Tech confirms customer name, address, ZIP (pre-filled from the work order). App calls <code>partner_check_availability</code> → gets a date + 1-hour window in ~1s.</div>
       <div class="arrow">→</div>
-      <div class="box"><b>2 · Ask</b>Tech reads the time to the customer: <i>"They can be out Saturday between 10:45 and 11:45 — work for you?"</i></div>
+      <div class="box"><b>2 · Ask</b>Tech reads the time to the customer and gets a yes or no. Nothing is booked yet.</div>
       <div class="arrow">→</div>
       <div class="box"><b>3 · Book</b>On yes, app calls <code>partner_book_job</code> with phone + water type. Customer and job are created in Simply Salt's system, tagged to your technician.</div>
     </div>
 
-    <div class="callout"><b>Design goal — zero typing:</b> the technician is standing in a house that's already a job in your system. Pre-fill customer name, address, ZIP, and phone from the work order, and take the technician's name from their app session. The referral becomes two taps.</div>
+    <div class="callout">Pre-fill customer name, address, ZIP, and phone from the active work order, and take the technician's name from the login session. Done that way, a referral is two taps and the tech types nothing.</div>
 
     <h2>Connection details</h2>
     <table>
       <tr><th>Base URL</th><td><code>https://primary-6xmr-production.up.railway.app/webhook</code></td></tr>
-      <tr><th>Auth</th><td>Header <code>x-partner-key: &lt;key&gt;</code> on every request. The key below is the <b>demo key</b> for development; the <b>production key is delivered separately</b> — keep it in your backend and proxy these calls through your server. Never ship it in the mobile app binary.</td></tr>
+      <tr><th>Auth</th><td>Header <code>x-partner-key: &lt;key&gt;</code> on every request. The key below is the <b>demo key</b> for development. The <b>production key is delivered separately</b>: keep it on your server and proxy these calls through your backend, not from the mobile app.</td></tr>
       <tr><th>Demo key</th><td><code>sk_demo_petermanshow_2026</code></td></tr>
       <tr><th>Format</th><td>JSON request body, JSON response. UTF-8. All times US Eastern.</td></tr>
     </table>
 
     <h2><span class="step">1</span>POST /partner_check_availability</h2>
-    <p>Read-only. Returns the proposed delivery slot: always the <b>next upcoming Saturday</b>, at the first open time from 9:00&nbsp;AM with at least 30 minutes of clearance on each side of Simply Salt's existing stops. All ZIP codes are accepted.</p>
+    <p>Read-only. Returns the proposed slot: the next upcoming Saturday, at the first open time from 9:00&nbsp;AM that keeps 30 minutes clear on each side of existing stops. Every ZIP code is accepted, so you can skip ZIP validation on your side. <code>stop_number</code> and <code>total_stops</code> are informational; you don't need to use them.</p>
     <table>
       <tr><th>Field</th><th>Type</th><th>Notes</th></tr>
       <tr><td><code>customer_name</code></td><td>string</td><td>Optional here, required at booking</td></tr>
@@ -111,14 +111,13 @@
   "referred_by": "Mike Johnson",
   "confirmation_message": "Delivery scheduled for Saturday, July 18, 2026 at approximately 10:45 AM. ..."
 }</pre>
-    <p>Show <code>confirmation_message</code> to the technician. On Simply Salt's side the job carries the note <code>PARTNER REFERRAL - Referred by: Mike Johnson (Peterman Brothers) | ...</code> and the tag <code>partner-referral</code> — that's the referral audit trail used for commission reporting.</p>
+    <p>Show <code>confirmation_message</code> to the technician. The booked job carries the note <code>PARTNER REFERRAL - Referred by: Mike Johnson (Peterman Brothers)</code> plus the tag <code>partner-referral</code>, which is the audit trail used for commission reporting.</p>
 
     <h2>Errors</h2>
     <table>
       <tr><th>Status</th><th>Body</th><th>Meaning</th></tr>
       <tr><td><code>401</code></td><td><code>{"error":"unauthorized"}</code></td><td>Missing or wrong <code>x-partner-key</code></td></tr>
       <tr><td><code>400</code></td><td><code>{"error":"invalid_input","missing_fields":["phone","referred_by"]}</code></td><td>Lists exactly which required fields are absent or malformed</td></tr>
-      <tr><td><code>200</code></td><td><code>{"available": true, ...}</code> / <code>{"success": true, ...}</code></td><td>Good to go</td></tr>
     </table>
 
     <h2>Reference implementation</h2>
@@ -155,11 +154,10 @@ const booking = await call("partner_book_job", {
       <li>Swap in the production key (delivered privately), stored server-side.</li>
       <li>Send one live test booking; Simply Salt confirms it landed with the referral note, then you ship.</li>
     </ol>
-    <div class="callout warn"><b>Anything you want changed</b> — extra fields, technician IDs instead of names, a callback webhook when the delivery completes (for commission reconciliation) — is a same-day change on our side. Just ask.</div>
+    <div class="callout warn">Need something different (extra fields, technician IDs instead of names, a completion callback for commission reconciliation)? Changes on the Simply Salt side usually ship the same day.</div>
   </div>
   <div class="foot">
     <span>Simply Salt · Zionsville, IN · evanalanwalker@gmail.com</span>
-    <span>Print this page — it's formatted as a one-pager.</span>
   </div>
 </div>
 </body>
